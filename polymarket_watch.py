@@ -37,7 +37,6 @@ socket.getaddrinfo = _ipv4_only_getaddrinfo
 
 ACCOUNTS = {
     # display_name: wallet_address
-    "lilybaeum": "0x01c78f8873c0c86d6b6b92ff627e3802237ee995",
     "monkeymashingkeyboard": "0x684baa57c338c2549aec0aa3f034f695d72a8409",
     "ferrarichampions2026": "0xfe787d2da716d60e8acff57fb87eb13cd4d10319",
 }
