@@ -12,10 +12,24 @@ or cron) without re-notifying on the same trade twice.
 
 import json
 import os
+import socket
 import time
 import urllib.request
 import urllib.parse
 from pathlib import Path
+
+# Force IPv4 for all outbound requests. Some CI runners (including GitHub
+# Actions) advertise broken/unreachable IPv6 routes, which makes urllib pick
+# an IPv6 address for a host like ntfy.sh and fail with
+# "[Errno 101] Network is unreachable". Forcing IPv4 avoids that.
+_orig_getaddrinfo = socket.getaddrinfo
+
+
+def _ipv4_only_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+    return _orig_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
+
+
+socket.getaddrinfo = _ipv4_only_getaddrinfo
 
 # ---------------------------------------------------------------------------
 # CONFIG - fill these in
@@ -108,60 +122,4 @@ def format_bet_message(item: dict, pct_of_day: float, day_total: float) -> str:
     lines = [
         f"{side} {outcome} on: {title}",
         f"${usdc:,.2f} ({size:,.1f} shares @ {price*100:.1f}c)",
-        f"= {pct_of_day:.1f}% of their ${day_total:,.2f} total today",
-    ]
-    return "\n".join(lines)
-
-
-def main():
-    state = load_state()
-    now_ts = int(time.time())
-
-    for name, address in ACCOUNTS.items():
-        if address.startswith("0xREPLACE"):
-            print(f"Skipping {name}: no wallet address configured yet")
-            continue
-
-        print(f"Checking {name} ({address[:10]}...)")
-        activity = fetch_recent_activity(address, limit=100)
-        if not activity:
-            continue
-
-        # activity comes back newest-first
-        activity.sort(key=lambda x: x.get("timestamp", 0), reverse=True)
-
-        last_seen = state.get(address, {}).get("last_ts", 0)
-        new_trades = [a for a in activity if a.get("timestamp", 0) > last_seen]
-
-        day_total = todays_total_usdc(activity, now_ts)
-
-        # send oldest-first so notifications arrive in chronological order
-        for item in reversed(new_trades):
-            usdc = float(item.get("usdcSize", 0) or 0)
-            pct_of_day = (usdc / day_total * 100) if day_total > 0 else 0.0
-
-            is_priority = name in PRIORITY_ACCOUNTS
-            title = f"{'⭐ ' if is_priority else ''}{name} placed a bet"
-            message = format_bet_message(item, pct_of_day, day_total)
-            market_slug = item.get("slug", "")
-            market_url = f"https://polymarket.com/event/{market_slug}" if market_slug else None
-
-            print(f"  NEW: {message}")
-            send_ntfy(
-                NTFY_TOPIC,
-                title,
-                message,
-                priority="high" if is_priority else "default",
-                url=market_url,
-            )
-
-        # update state to the newest timestamp we've seen, even if no new trades
-        if activity:
-            newest_ts = max(a.get("timestamp", 0) for a in activity)
-            state.setdefault(address, {})["last_ts"] = max(last_seen, newest_ts)
-
-    save_state(state)
-
-
-if __name__ == "__main__":
-    main()
+        f"= {pct_of_day:.1f}% of
