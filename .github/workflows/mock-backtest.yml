@@ -1,0 +1,18 @@
+name: Mock Backtest
+
+on:
+  workflow_dispatch: {}   # manual trigger only
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run mock backtest
+        run: python3 mock_backtest.py
