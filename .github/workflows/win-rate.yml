@@ -1,0 +1,18 @@
+name: Win Rate Report
+
+on:
+  workflow_dispatch: {}   # manual trigger only - click "Run workflow" whenever you want a fresh report
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run win rate report
+        run: python3 win_rate.py
